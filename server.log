@@ -1,0 +1,32 @@
+
+> jp-stock-idea-backend@1.0.0 start
+> node src/server.js
+
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (/home/yamaryu/ãƒ‰ãGET / 304 - - 1.840 ms
+GET /styles.css 304 - - 5.683 ms
+GET /app.js 304 - - 3.229 ms
+GET /favicon.ico 304 - - 1.450 ms
+POST /api/generate 200 8588 - 22182.978 ms
+bu3/backend/src/server.js:381:5
+    at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1944:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v20.19.5
