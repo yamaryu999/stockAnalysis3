@@ -15,6 +15,11 @@ import yfinance as yf
 
 NIKKEI_COMPONENT_URL = "https://indexes.nikkei.co.jp/en/nkave/index/component?idx=nk225"
 JPX_LIST_URL = "https://www.jpx.co.jp/english/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_e.xls"
+JPX_LIST_JA_URL = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
+
+# Near-high thresholds
+NEAR_20D = 0.99
+NEAR_52W = 0.97
 
 
 
@@ -98,6 +103,39 @@ def fetch_prime_universe() -> Tuple[List[str], Dict[str, str]]:
         tickers.append(ticker)
 
     return tickers, name_map
+
+
+def fetch_jpx_japanese_names() -> Dict[str, str]:
+    """Return mapping of ticker (e.g., '7203.T') -> Japanese company name.
+
+    Falls back silently if JPX endpoint is unavailable.
+    """
+    try:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0 Safari/537.36"
+            )
+        }
+        resp = requests.get(JPX_LIST_JA_URL, headers=headers, timeout=30)
+        resp.raise_for_status()
+        df = pd.read_excel(BytesIO(resp.content), engine="xlrd")
+        mapping: Dict[str, str] = {}
+        for _, row in df.iterrows():
+            code = row.get("コード")
+            name = row.get("銘柄名")
+            if pd.isna(code) or pd.isna(name):
+                continue
+            try:
+                c = int(code)
+            except Exception:
+                continue
+            if 1000 <= c <= 9999:  # likely equity
+                mapping[f"{c:04d}.T"] = str(name)
+        return mapping
+    except Exception:
+        return {}
 
 
 
@@ -351,6 +389,13 @@ def main():
         tickers, name_map = fetch_nikkei225_universe()
         universe_label = "Nikkei 225"
 
+    # Prefer Japanese company names when available (JPX)
+    ja_map = fetch_jpx_japanese_names()
+    if ja_map:
+        for i, t in enumerate(tickers):
+            if t in ja_map:
+                name_map[t] = ja_map[t]
+
     tickers = [t for t in tickers if t]
     print(f"Universe: {len(tickers)} tickers ({universe_label})")
 
@@ -430,12 +475,12 @@ def main():
             return
         for m, score in lst:
             note_parts = []
-            if not math.isnan(m.prox_20h) and m.prox_20h >= 0.99:
-                note_parts.append("near-20d-high")
-            if not math.isnan(m.prox_52wh) and m.prox_52wh >= 0.99:
-                note_parts.append("near-52w-high")
+            if not math.isnan(m.prox_20h) and m.prox_20h >= NEAR_20D:
+                note_parts.append("20日高値圏")
+            if not math.isnan(m.prox_52wh) and m.prox_52wh >= NEAR_52W:
+                note_parts.append("52週高値圏")
             if not math.isnan(m.vol_ratio_10_20) and m.vol_ratio_10_20 >= 1.1:
-                note_parts.append("vol↑")
+                note_parts.append("出来高↑")
             note = ",".join(note_parts)
             prox52_delta = m.prox_52wh - 1 if not math.isnan(m.prox_52wh) else np.nan
             print(
