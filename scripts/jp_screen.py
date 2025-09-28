@@ -375,6 +375,53 @@ def main():
     mid = screen_mid(metrics)[:top_n]
     long = screen_long(metrics)[:top_n]
 
+    def explain(m: Metrics, tf: str) -> str:
+        parts: List[str] = []
+        # 共通: パフォーマンスと出来高
+        if not math.isnan(m.ret_5):
+            parts.append(f"直近5日 {format_pct(m.ret_5)}")
+        if not math.isnan(m.ret_20):
+            parts.append(f"1ヶ月 {format_pct(m.ret_20)}")
+        if not math.isnan(m.ret_60):
+            parts.append(f"3ヶ月 {format_pct(m.ret_60)}")
+        if not math.isnan(m.ret_120):
+            parts.append(f"6ヶ月 {format_pct(m.ret_120)}")
+        if not math.isnan(m.vol_ratio_10_20):
+            parts.append(f"出来高10/20日比 {m.vol_ratio_10_20:.2f}倍")
+
+        # 高値接近度
+        if not math.isnan(m.prox_20h):
+            if m.prox_20h >= 0.99:
+                parts.append("20日高値圏(±1%)")
+            else:
+                parts.append(f"20日高値まであと {(1-m.prox_20h)*100:.1f}%")
+        if not math.isnan(m.prox_52wh):
+            if m.prox_52wh >= 1.0:
+                parts.append("52週高値更新")
+            elif m.prox_52wh >= 0.97:
+                parts.append("52週高値圏(±3%)")
+            else:
+                parts.append(f"52週高値まであと {(1-m.prox_52wh)*100:.1f}%")
+
+        # トレンド条件
+        if tf == "short":
+            if m.above_ma20 and m.above_ma50:
+                parts.append("20/50日線上")
+        elif tf == "mid":
+            if m.above_ma50 and m.above_ma200:
+                parts.append("50/200日線上")
+            if not math.isnan(m.ma200_slope_20d) and m.ma200_slope_20d > 0:
+                parts.append(f"200日線上向き({m.ma200_slope_20d*100:.1f}%/20日)")
+        elif tf == "long":
+            if m.above_ma200:
+                parts.append("200日線上")
+            if not math.isnan(m.ma200_slope_20d) and m.ma200_slope_20d > 0:
+                parts.append(f"200日線上向き({m.ma200_slope_20d*100:.1f}%/20日)")
+            if not math.isnan(m.ret_250):
+                parts.append(f"12ヶ月 {format_pct(m.ret_250)}")
+
+        return "、".join(parts)
+
     def print_list(title: str, lst: List[Tuple[Metrics, float]]):
         print(f"\n{title}")
         print("ticker | name | 5d | 1m | 3m | 6m | 52w% | vol10/20 | note")
@@ -397,6 +444,8 @@ def main():
                 f"{format_pct(prox52_delta)} | "
                 f"{m.vol_ratio_10_20:.2f} | {note}"
             )
+            # 選定根拠を追記
+            print("  根拠: " + explain(m, "short" if title.startswith("Short-term") else ("mid" if title.startswith("Mid-term") else "long")))
 
     print_list("Short-term candidates (1–4 weeks):", short)
     print_list("Mid-term candidates (1–3 months):", mid)
